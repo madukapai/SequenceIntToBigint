@@ -246,7 +246,6 @@ namespace SequenceIntToBigint
                 }
 
                 objTrans.Commit();
-                SqlCmd.Connection.Close();
 
                 MessageBox.Show("完成所有轉換，請重新進行資料庫連線並重整順序清單畫面", "順序轉移", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -254,6 +253,13 @@ namespace SequenceIntToBigint
             {
                 objTrans.Rollback();
                 MessageBox.Show("轉換失敗:" + ex.Message, "順序轉移", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                if (SqlCmd.Connection.State == ConnectionState.Open)
+                    SqlCmd.Connection.Close();
+
+                objTrans = null;
             }
         }
 
