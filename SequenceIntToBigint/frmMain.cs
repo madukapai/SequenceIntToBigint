@@ -196,52 +196,65 @@ namespace SequenceIntToBigint
                 });
             }
 
+            SqlTransaction objTrans = SqlConn.BeginTransaction();
             SqlCommand SqlCmd = new SqlCommand();
             SqlCmd.Connection = SqlConn;
-            SqlCmd.Connection.Open();
 
-            for (int i = 0; i < gvSequence.Rows.Count; i++)
+            try
             {
-                string strSequence = gvSequence.Rows[i].Cells[intSequenceIndex].Value.ToString();
-                DataGridViewComboBoxCell ddlTable = (DataGridViewComboBoxCell)gvSequence.Rows[i].Cells[intTableIndex];
-                DataGridViewComboBoxCell ddlColumn = (DataGridViewComboBoxCell)gvSequence.Rows[i].Cells[intColumnIndex];
-                DataGridViewCheckBoxCell cbxConvert = (DataGridViewCheckBoxCell)gvSequence.Rows[i].Cells[intConvertIndex];
+                SqlCmd.Connection.Open();
 
-                // 進行更新動作
-                if ((bool)cbxConvert.Value)
+                for (int i = 0; i < gvSequence.Rows.Count; i++)
                 {
-                    // 先刪除Sequence
-                    strSql = "DROP SEQUENCE " + strSequence;
-                    SqlCmd.CommandText = strSql;
-                    SqlCmd.ExecuteNonQuery();
+                    string strSequence = gvSequence.Rows[i].Cells[intSequenceIndex].Value.ToString();
+                    DataGridViewComboBoxCell ddlTable = (DataGridViewComboBoxCell)gvSequence.Rows[i].Cells[intTableIndex];
+                    DataGridViewComboBoxCell ddlColumn = (DataGridViewComboBoxCell)gvSequence.Rows[i].Cells[intColumnIndex];
+                    DataGridViewCheckBoxCell cbxConvert = (DataGridViewCheckBoxCell)gvSequence.Rows[i].Cells[intConvertIndex];
 
-                    // 重新建立Sequence
-                    int intCurrentValue = objSeqValue.Where(x => x.Sequence == strSequence).Select(c => c.CurrentValue).FirstOrDefault();
-                    strSql = "CREATE SEQUENCE " + strSequence + " As bigint CYCLE MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT BY 1 START WITH " + intCurrentValue.ToString();
-                    SqlCmd.CommandText = strSql;
-                    SqlCmd.ExecuteNonQuery();
-
-                    // 更新資料表
-                    if (ddlTable.Value.ToString() != "-")
+                    // 進行更新動作
+                    if ((bool)cbxConvert.Value)
                     {
-                        var objKey = objKeyColumn.Where(x => x.ColumnName == strSequence).FirstOrDefault();
+                        // 先刪除Sequence
+                        strSql = "DROP SEQUENCE " + strSequence;
+                        SqlCmd.CommandText = strSql;
+                        SqlCmd.ExecuteNonQuery();
 
-                        if (objKey != null)
+                        // 重新建立Sequence
+                        int intCurrentValue = objSeqValue.Where(x => x.Sequence == strSequence).Select(c => c.CurrentValue).FirstOrDefault();
+                        strSql = "CREATE SEQUENCE " + strSequence + " As bigint CYCLE MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT BY 1 START WITH " + intCurrentValue.ToString();
+                        SqlCmd.CommandText = strSql;
+                        SqlCmd.ExecuteNonQuery();
+
+                        // 更新資料表
+                        if (ddlTable.Value.ToString() != "-")
                         {
-                            strSql = $"ALTER TABLE [{objKey.TableName}] DROP CONSTRAINT [{objKey.ConstraintName}];";
-                            strSql += $"ALTER TABLE [{objKey.TableName}] ALTER COLUMN [{objKey.ColumnName}] bigint NOT NULL;";
+                            var objKey = objKeyColumn.Where(x => x.ColumnName == strSequence).FirstOrDefault();
 
-                            strSql += $@"ALTER TABLE [{objKey.TableName}] ADD CONSTRAINT [{objKey.ConstraintName}] PRIMARY KEY CLUSTERED
+                            if (objKey != null)
+                            {
+                                strSql = $"ALTER TABLE [{objKey.TableName}] DROP CONSTRAINT [{objKey.ConstraintName}];";
+                                strSql += $"ALTER TABLE [{objKey.TableName}] ALTER COLUMN [{objKey.ColumnName}] bigint NOT NULL;";
+
+                                strSql += $@"ALTER TABLE [{objKey.TableName}] ADD CONSTRAINT [{objKey.ConstraintName}] PRIMARY KEY CLUSTERED
                                         ([{objKey.ColumnName}] ASC) WITH 
                                         (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY];";
-                            SqlCmd.CommandText = strSql;
-                            SqlCmd.ExecuteNonQuery();
+                                SqlCmd.CommandText = strSql;
+                                SqlCmd.ExecuteNonQuery();
+                            }
                         }
                     }
                 }
-            }
 
-            SqlCmd.Connection.Close();
+                objTrans.Commit();
+                SqlCmd.Connection.Close();
+
+                MessageBox.Show("完成所有轉換，請重新進行資料庫連線並重整順序清單畫面", "順序轉移", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                objTrans.Rollback();
+                MessageBox.Show("轉換失敗:" + ex.Message, "順序轉移", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         public class KeyColumnModel
