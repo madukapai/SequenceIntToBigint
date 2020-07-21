@@ -92,6 +92,7 @@ namespace SequenceIntToBigint
                 objKeyColumn.Add(
                     new KeyColumnModel()
                     {
+                        ConstraintName = dtKeyColumn.Rows[i]["CONSTRAINT_NAME"].ToString(),
                         TableName = dtKeyColumn.Rows[i]["TABLE_NAME"].ToString(),
                         ColumnName = dtKeyColumn.Rows[i]["COLUMN_NAME"].ToString()
                     }
@@ -126,10 +127,14 @@ namespace SequenceIntToBigint
 
                 string strTableName = objKeyColumn.Where(x => x.ColumnName == strSequence).Select(c => c.TableName).FirstOrDefault() ?? "";
 
-                ddlTable.DataSource = objTable.Select(c => c.TableName).ToList();
+                var objTableData = objTable.Select(c => c.TableName).ToList();
                 ddlTable.Value = strTableName;
+                ddlTable.Items.Add("-");
+                for (int d = 0; d < objTableData.Count; d++)
+                    ddlTable.Items.Add(objTableData[d]);
 
                 // 放入Column
+                cbxConvert.Value = false;
                 if (!string.IsNullOrEmpty(strTableName))
                 {
                     ddlColumn.DataSource = objColumn.Where(x => x.TableName == strTableName).Select(c => c.ColumnName).ToList();
@@ -152,14 +157,19 @@ namespace SequenceIntToBigint
         {
             if (e.ColumnIndex == intTableIndex && blEnableEdit)
             {
-                string strTableName = gvSequence.Rows[e.RowIndex].Cells[intTableIndex].Value.ToString();
+                string strTableName = gvSequence.Rows[e.RowIndex].Cells[intTableIndex].Value?.ToString();
+                DataGridViewComboBoxCell ddlColumn = (DataGridViewComboBoxCell)gvSequence.Rows[e.RowIndex].Cells[intColumnIndex];
+                ddlColumn.DataSource = null;
 
                 // 放入Column
                 if (!string.IsNullOrEmpty(strTableName))
                 {
-                    DataGridViewComboBoxCell ddlColumn = (DataGridViewComboBoxCell)gvSequence.Rows[e.RowIndex].Cells[intColumnIndex];
                     ddlColumn.DataSource = objColumn.Where(x => x.TableName == strTableName).Select(c => c.ColumnName).ToList();
                     ddlColumn.Value = objKeyColumn.Where(x => x.TableName == strTableName).Select(c => c.ColumnName).FirstOrDefault() ?? "";
+                }
+                else
+                {
+                    ddlColumn.Items.Add("-");
                 }
             }
         }
@@ -188,7 +198,7 @@ namespace SequenceIntToBigint
 
             SqlCommand SqlCmd = new SqlCommand();
             SqlCmd.Connection = SqlConn;
-            // SqlCmd.Connection.Open();
+            SqlCmd.Connection.Open();
 
             for (int i = 0; i < gvSequence.Rows.Count; i++)
             {
@@ -203,30 +213,40 @@ namespace SequenceIntToBigint
                     // 先刪除Sequence
                     strSql = "DROP SEQUENCE " + strSequence;
                     SqlCmd.CommandText = strSql;
-                    // SqlCmd.ExecuteNonQuery();
+                    SqlCmd.ExecuteNonQuery();
 
                     // 重新建立Sequence
                     int intCurrentValue = objSeqValue.Where(x => x.Sequence == strSequence).Select(c => c.CurrentValue).FirstOrDefault();
-                    strSql = "CREATE SEQUENCE " + strSequence + " As bigint CYCLE INCREMENT BY 1 START WITH " + intCurrentValue.ToString();
+                    strSql = "CREATE SEQUENCE " + strSequence + " As bigint CYCLE MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT BY 1 START WITH " + intCurrentValue.ToString();
                     SqlCmd.CommandText = strSql;
-                    // SqlCmd.ExecuteNonQuery();
+                    SqlCmd.ExecuteNonQuery();
 
                     // 更新資料表
-                    //ALTER TABLE[dbo].[USER] DROP CONSTRAINT[PK_USER_USER_ID]
+                    if (ddlTable.Value.ToString() != "-")
+                    {
+                        var objKey = objKeyColumn.Where(x => x.ColumnName == strSequence).FirstOrDefault();
 
-                    //ALTER TABLE[dbo].[USER] ALTER COLUMN USER_ID bigint NOT NULL
+                        if (objKey != null)
+                        {
+                            strSql = $"ALTER TABLE [{objKey.TableName}] DROP CONSTRAINT [{objKey.ConstraintName}];";
+                            strSql += $"ALTER TABLE [{objKey.TableName}] ALTER COLUMN [{objKey.ColumnName}] bigint NOT NULL;";
 
-
-                    //ALTER TABLE[dbo].[USER] ADD CONSTRAINT[PK_USER_USER_ID] PRIMARY KEY CLUSTERED
-                    //(
-                    //[USER_ID] ASC
-                    //)WITH(PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON[PRIMARY]
+                            strSql += $@"ALTER TABLE [{objKey.TableName}] ADD CONSTRAINT [{objKey.ConstraintName}] PRIMARY KEY CLUSTERED
+                                        ([{objKey.ColumnName}] ASC) WITH 
+                                        (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY];";
+                            SqlCmd.CommandText = strSql;
+                            SqlCmd.ExecuteNonQuery();
+                        }
+                    }
                 }
             }
+
+            SqlCmd.Connection.Close();
         }
 
         public class KeyColumnModel
         {
+            public string ConstraintName { get; set; }
             public string TableName { get; set; }
             public string ColumnName { get; set; }
         }
