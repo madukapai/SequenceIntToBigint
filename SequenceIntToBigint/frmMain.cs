@@ -134,15 +134,16 @@ namespace SequenceIntToBigint
                     ddlTable.Items.Add(objTableData[d]);
 
                 // 放入Column
-                cbxConvert.Value = false;
-                if (!string.IsNullOrEmpty(strTableName))
-                {
-                    ddlColumn.DataSource = objColumn.Where(x => x.TableName == strTableName).Select(c => c.ColumnName).ToList();
-                    ddlColumn.Value = objKeyColumn.Where(x => x.TableName == strTableName).Select(c => c.ColumnName).FirstOrDefault() ?? "";
+                cbxConvert.Value = true;
+                //cbxConvert.Value = false;
+                //if (!string.IsNullOrEmpty(strTableName))
+                //{
+                //    ddlColumn.DataSource = objColumn.Where(x => x.TableName == strTableName).Select(c => c.ColumnName).ToList();
+                //    ddlColumn.Value = objKeyColumn.Where(x => x.TableName == strTableName).Select(c => c.ColumnName).FirstOrDefault() ?? "";
 
-                    // 打勾
-                    cbxConvert.Value = true;
-                }
+                //    // 打勾
+                //    cbxConvert.Value = true;
+                //}
             }
 
             blEnableEdit = true;
@@ -196,14 +197,13 @@ namespace SequenceIntToBigint
                 });
             }
 
-            SqlTransaction objTrans = SqlConn.BeginTransaction();
             SqlCommand SqlCmd = new SqlCommand();
             SqlCmd.Connection = SqlConn;
+            SqlCmd.Connection.Open();
+            // SqlTransaction objTrans = SqlConn.BeginTransaction();
 
             try
             {
-                SqlCmd.Connection.Open();
-
                 for (int i = 0; i < gvSequence.Rows.Count; i++)
                 {
                     string strSequence = gvSequence.Rows[i].Cells[intSequenceIndex].Value.ToString();
@@ -226,32 +226,32 @@ namespace SequenceIntToBigint
                         SqlCmd.ExecuteNonQuery();
 
                         // 更新資料表
-                        if (ddlTable.Value.ToString() != "-")
-                        {
-                            var objKey = objKeyColumn.Where(x => x.ColumnName == strSequence).FirstOrDefault();
+                        //if (ddlTable.Value.ToString() != "-")
+                        //{
+                        //    var objKey = objKeyColumn.Where(x => x.ColumnName == strSequence).FirstOrDefault();
 
-                            if (objKey != null)
-                            {
-                                strSql = $"ALTER TABLE [{objKey.TableName}] DROP CONSTRAINT [{objKey.ConstraintName}];";
-                                strSql += $"ALTER TABLE [{objKey.TableName}] ALTER COLUMN [{objKey.ColumnName}] bigint NOT NULL;";
+                        //    if (objKey != null)
+                        //    {
+                        //        strSql = $"ALTER TABLE [{objKey.TableName}] DROP CONSTRAINT [{objKey.ConstraintName}];";
+                        //        strSql += $"ALTER TABLE [{objKey.TableName}] ALTER COLUMN [{objKey.ColumnName}] bigint NOT NULL;";
 
-                                strSql += $@"ALTER TABLE [{objKey.TableName}] ADD CONSTRAINT [{objKey.ConstraintName}] PRIMARY KEY CLUSTERED
-                                        ([{objKey.ColumnName}] ASC) WITH 
-                                        (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY];";
-                                SqlCmd.CommandText = strSql;
-                                SqlCmd.ExecuteNonQuery();
-                            }
-                        }
+                        //        strSql += $@"ALTER TABLE [{objKey.TableName}] ADD CONSTRAINT [{objKey.ConstraintName}] PRIMARY KEY CLUSTERED
+                        //                ([{objKey.ColumnName}] ASC) WITH 
+                        //                (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY];";
+                        //        SqlCmd.CommandText = strSql;
+                        //        SqlCmd.ExecuteNonQuery();
+                        //    }
+                        //}
                     }
                 }
 
-                objTrans.Commit();
+                // objTrans.Commit();
 
                 MessageBox.Show("完成所有轉換，請重新進行資料庫連線並重整順序清單畫面", "順序轉移", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                objTrans.Rollback();
+                // objTrans.Rollback();
                 MessageBox.Show("轉換失敗:" + ex.Message, "順序轉移", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             finally
@@ -259,7 +259,7 @@ namespace SequenceIntToBigint
                 if (SqlCmd.Connection.State == ConnectionState.Open)
                     SqlCmd.Connection.Close();
 
-                objTrans = null;
+                // objTrans = null;
             }
         }
 
