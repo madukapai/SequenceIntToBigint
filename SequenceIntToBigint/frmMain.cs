@@ -221,7 +221,7 @@ namespace SequenceIntToBigint
 
                         // 重新建立Sequence
                         int intCurrentValue = objSeqValue.Where(x => x.Sequence == strSequence).Select(c => c.CurrentValue).FirstOrDefault();
-                        strSql = "CREATE SEQUENCE " + strSequence + " As bigint CYCLE MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT BY 1 START WITH " + intCurrentValue.ToString();
+                        strSql = "CREATE SEQUENCE " + strSequence + " As bigint CYCLE MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT BY 1 START WITH " + (intCurrentValue + 1).ToString();
                         SqlCmd.CommandText = strSql;
                         SqlCmd.ExecuteNonQuery();
 
